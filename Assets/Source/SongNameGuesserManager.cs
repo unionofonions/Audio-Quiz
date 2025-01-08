@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 using TMPro;
 
 namespace AudioQuiz
@@ -11,7 +12,18 @@ namespace AudioQuiz
         private AudioClip[] _clips;
 
         [SerializeField]
+        [Min(5f)]
         private float _songDuration;
+
+        [SerializeField]
+        [Min(1)]
+        private int _questionCount;
+
+        [SerializeField]
+        private ScoreManager _scoreManager;
+
+        [SerializeField]
+        private UnityEvent _onEnd;
 
         [Header("UI")]
         [SerializeField]
@@ -32,13 +44,19 @@ namespace AudioQuiz
         [SerializeField]
         private TextMeshProUGUI _timeoutCountGui;
 
+        [SerializeField]
+        private TextMeshProUGUI _endGameScoreGui;
+
         private AudioSource _audioSource;
         private AudioClip _currentClip;
 
         private float _timeLeft;
+        private int _currentQuestion;
         private int _correctAnswerCount;
         private int _wrongAnswerCount;
         private int _timeoutCount;
+
+        private string _currentPlayer;
 
         public void StartGame()
         {
@@ -56,6 +74,11 @@ namespace AudioQuiz
         public void StopCurrentClip()
         {
             _audioSource.Stop();
+        }
+
+        public void SetCurrentPlayer(string player)
+        {
+            _currentPlayer = player;
         }
 
         private void Awake()
@@ -103,23 +126,42 @@ namespace AudioQuiz
 
         private void OnCorrectAnswer()
         {
-            Debug.Log("CORRECT answer.");
             _correctAnswerCount++;
-            NextQuestion();
+            OnAnswer();
         }
 
         private void OnIncorrectAnswer()
         {
-            Debug.Log("WRONG answer.");
             _wrongAnswerCount++;
-            NextQuestion();
+            OnAnswer();
         }
 
         private void OnTimeout()
         {
-            Debug.Log("TIMEOUT answer.");
             _timeoutCount++;
-            NextQuestion();
+            OnAnswer();
+        }
+
+        private void OnAnswer()
+        {
+            if (++_currentQuestion < _questionCount)
+            {
+                NextQuestion();
+            }
+            else
+            {
+                OnEndGame();
+            }
+        }
+
+        private void OnEndGame()
+        {
+            int score = _correctAnswerCount;
+            _scoreManager.AddOrUpdate(_currentPlayer, score);
+            _onEnd.Invoke();
+            StopCurrentClip();
+            _endGameScoreGui.text = $"Your Score: {score}";
+            enabled = false;
         }
 
         private void UpdateStopwatch()
@@ -130,6 +172,7 @@ namespace AudioQuiz
 
         private void ResetScore()
         {
+            _currentQuestion = 0;
             _correctAnswerCount = 0;
             _wrongAnswerCount = 0;
             _timeoutCount = 0;
